@@ -1,114 +1,28 @@
-import { Hono } from "hono";
-import type { AppEnv } from "../types";
-import { MAIL_CATEGORIES } from "../types";
-import { hashPassword } from "../services/auth";
+import { Hono } from 'hono';
+import type { AppEnv } from '../types';
+import { MAIL_CATEGORIES } from '../types';
+import { hashPassword } from '../services/auth';
+import { getNotificationSettings, testNotificationChannel } from '../services/notifications';
+import { extractWithRegex, validateRegexRule, type RegexRuleInput } from '../services/regex';
+const admin=new Hono<AppEnv>();
 
-const admin = new Hono<AppEnv>();
+admin.get('/users',async c=>{const{results}=await c.env.DB.prepare('SELECT id,username,role,created_at AS createdAt FROM users ORDER BY id').all();return c.json({users:results??[]});});
+admin.post('/users',async c=>{const b=await c.req.json<{username?:string;password?:string;role?:string}>().catch(()=>null);if(!b?.username||!b?.password||b.password.length<8)return c.json({error:'username and password (min 8 chars) required'},400);const role=b.role==='admin'?'admin':'user';try{const r=await c.env.DB.prepare('INSERT INTO users (username,password_hash,role) VALUES (?,?,?)').bind(b.username,await hashPassword(b.password),role).run();return c.json({id:r.meta.last_row_id,username:b.username,role},201);}catch{return c.json({error:'Username already exists'},409);}});
+admin.delete('/users/:id{[0-9]+}',async c=>{const id=Number.parseInt(c.req.param('id'),10);if(id===c.get('user').id)return c.json({error:'Cannot delete yourself'},400);await c.env.DB.prepare('DELETE FROM users WHERE id=?').bind(id).run();return c.json({ok:true});});
 
-// ---------- 用户管理 ----------
+admin.get('/notifications',async c=>{const s=await getNotificationSettings(c.env);return c.json({barkEnabled:s.barkEnabled,barkUrl:s.barkUrl,barkTokens:s.barkTokens,ntfyEnabled:s.ntfyEnabled,ntfyUrl:s.ntfyUrl,ntfyTopic:s.ntfyTopic,ntfyTokenConfigured:Boolean(s.ntfyToken)});});
+admin.post('/notifications',async c=>{const b=await c.req.json<any>().catch(()=>null);if(!b)return c.json({error:'Invalid JSON body'},400);if(b.barkEnabled&&(!b.barkUrl?.trim()||!b.barkTokens?.trim()))return c.json({error:'Bark URL and at least one token are required when Bark is enabled'},400);if(b.ntfyEnabled&&(!b.ntfyUrl?.trim()||!b.ntfyTopic?.trim()))return c.json({error:'ntfy URL and topic are required when ntfy is enabled'},400);const current=await getNotificationSettings(c.env);const token=b.clearNtfyToken?'':b.ntfyToken?.trim()||current.ntfyToken;await c.env.DB.prepare(`INSERT INTO notification_settings(id,bark_enabled,bark_url,bark_tokens,ntfy_enabled,ntfy_url,ntfy_topic,ntfy_token,updated_at) VALUES(1,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET bark_enabled=excluded.bark_enabled,bark_url=excluded.bark_url,bark_tokens=excluded.bark_tokens,ntfy_enabled=excluded.ntfy_enabled,ntfy_url=excluded.ntfy_url,ntfy_topic=excluded.ntfy_topic,ntfy_token=excluded.ntfy_token,updated_at=CURRENT_TIMESTAMP`).bind(b.barkEnabled?1:0,(b.barkUrl||'https://api.day.app').trim().replace(/\/+$/, ''),b.barkTokens||'',b.ntfyEnabled?1:0,(b.ntfyUrl||'https://ntfy.sh').trim().replace(/\/+$/, ''),b.ntfyTopic||'',token).run();return c.json({ok:true});});
+admin.post('/notifications/test',async c=>{const b=await c.req.json<{channel?:string}>().catch(()=>null);if(b?.channel!=='bark'&&b?.channel!=='ntfy')return c.json({error:'channel must be bark or ntfy'},400);const result=await testNotificationChannel(c.env,b.channel);return c.json({channel:b.channel,...result});});
 
-admin.get("/users", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT id, username, role, created_at AS createdAt FROM users ORDER BY id",
-  ).all();
-  return c.json({ users: results ?? [] });
-});
+async function listRules(db:D1Database){const{results}=await db.prepare(`SELECT id,name,enabled,context_keywords AS contextKeywords,pattern,description,priority,created_at AS createdAt,updated_at AS updatedAt FROM regex_rules ORDER BY priority,id`).all<any>();return(results??[]).map(r=>({...r,enabled:Number(r.enabled)===1,contextKeywords:JSON.parse(r.contextKeywords||'[]')}));}
+admin.get('/regex-rules',async c=>c.json({rules:await listRules(c.env.DB)}));
+admin.post('/regex-rules',async c=>{const b=await c.req.json<RegexRuleInput>().catch(()=>null);if(!b)return c.json({error:'Invalid JSON body'},400);const error=validateRegexRule(b);if(error)return c.json({error},400);const r=await c.env.DB.prepare(`INSERT INTO regex_rules(name,enabled,context_keywords,pattern,description,priority) VALUES(?,?,?,?,?,?)`).bind(b.name.trim(),b.enabled===false?0:1,JSON.stringify(b.contextKeywords.map(k=>k.trim())),b.pattern,b.description?.trim()||'',b.priority??100).run();return c.json({id:r.meta.last_row_id},201);});
+admin.post('/regex-rules/:id{[0-9]+}',async c=>{const b=await c.req.json<RegexRuleInput>().catch(()=>null);if(!b)return c.json({error:'Invalid JSON body'},400);const error=validateRegexRule(b);if(error)return c.json({error},400);await c.env.DB.prepare(`UPDATE regex_rules SET name=?,enabled=?,context_keywords=?,pattern=?,description=?,priority=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(b.name.trim(),b.enabled===false?0:1,JSON.stringify(b.contextKeywords.map(k=>k.trim())),b.pattern,b.description?.trim()||'',b.priority??100,Number.parseInt(c.req.param('id'),10)).run();return c.json({ok:true});});
+admin.delete('/regex-rules/:id{[0-9]+}',async c=>{await c.env.DB.prepare('DELETE FROM regex_rules WHERE id=?').bind(Number.parseInt(c.req.param('id'),10)).run();return c.json({ok:true});});
+admin.post('/regex-rules/test',async c=>{const b=await c.req.json<{rule?:RegexRuleInput;subject?:string;body?:string}>().catch(()=>null);if(!b?.rule)return c.json({error:'rule is required'},400);const error=validateRegexRule(b.rule);if(error)return c.json({error},400);const match=extractWithRegex(`${b.subject||''}\n${b.body||''}`,[{id:0,name:b.rule.name,enabled:b.rule.enabled!==false,contextKeywords:b.rule.contextKeywords,pattern:b.rule.pattern,description:b.rule.description||'',priority:b.rule.priority??100}]);return c.json(match?{matched:true,...match}:{matched:false});});
+admin.post('/regex-rules/reset',async c=>{const pattern='(?<![A-Za-z0-9])(?=[A-Za-z0-9]{4,8}(?![A-Za-z0-9]))(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]+(?![A-Za-z0-9])';await c.env.DB.batch([c.env.DB.prepare('DELETE FROM regex_rules'),c.env.DB.prepare(`INSERT INTO regex_rules(name,enabled,context_keywords,pattern,description,priority) VALUES(?,?,?,?,?,?)`).bind('Generic verification code',1,JSON.stringify(['verification code','security code','authentication code','verify code','one-time code','one time code','OTP','passcode']),pattern,'Common English verification and OTP wording. Requires at least one digit.',100),c.env.DB.prepare(`INSERT INTO regex_rules(name,enabled,context_keywords,pattern,description,priority) VALUES(?,?,?,?,?,?)`).bind('Chinese verification code',1,JSON.stringify(['验证码','动态码','校验码','认证码','登录码','一次性密码','一次性验证码']),pattern,'Common Chinese verification-code wording. Requires at least one digit.',200)]);return c.json({ok:true,rules:await listRules(c.env.DB)});});
 
-admin.post("/users", async (c) => {
-  const body = await c.req
-    .json<{ username?: string; password?: string; role?: string }>()
-    .catch(() => null);
-  if (!body?.username || !body?.password || body.password.length < 8) {
-    return c.json({ error: "username and password (min 8 chars) required" }, 400);
-  }
-  const role = body.role === "admin" ? "admin" : "user";
-
-  const passwordHash = await hashPassword(body.password);
-  try {
-    const result = await c.env.DB.prepare(
-      "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-    )
-      .bind(body.username, passwordHash, role)
-      .run();
-    return c.json({ id: result.meta.last_row_id, username: body.username, role }, 201);
-  } catch {
-    return c.json({ error: "Username already exists" }, 409);
-  }
-});
-
-admin.delete("/users/:id{[0-9]+}", async (c) => {
-  const targetId = Number.parseInt(c.req.param("id"), 10);
-  if (targetId === c.get("user").id) {
-    return c.json({ error: "Cannot delete yourself" }, 400);
-  }
-  await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(targetId).run();
-  return c.json({ ok: true });
-});
-
-// ---------- Grants 管理 ----------
-
-admin.get("/grants", async (c) => {
-  const userId = c.req.query("user_id");
-  const stmt = userId
-    ? c.env.DB.prepare(
-        `SELECT g.id, g.user_id AS userId, u.username, g.address_pattern AS addressPattern,
-                g.allowed_categories AS allowedCategories, g.allow_sensitive AS allowSensitive,
-                g.created_at AS createdAt
-         FROM grants g JOIN users u ON u.id = g.user_id
-         WHERE g.user_id = ? ORDER BY g.id`,
-      ).bind(Number.parseInt(userId, 10))
-    : c.env.DB.prepare(
-        `SELECT g.id, g.user_id AS userId, u.username, g.address_pattern AS addressPattern,
-                g.allowed_categories AS allowedCategories, g.allow_sensitive AS allowSensitive,
-                g.created_at AS createdAt
-         FROM grants g JOIN users u ON u.id = g.user_id ORDER BY g.id`,
-      );
-  const { results } = await stmt.all();
-  return c.json({ grants: results ?? [] });
-});
-
-admin.post("/grants", async (c) => {
-  const body = await c.req
-    .json<{
-      userId?: number;
-      addressPattern?: string;
-      allowedCategories?: string[];
-      allowSensitive?: boolean;
-    }>()
-    .catch(() => null);
-
-  if (!body?.userId || !body?.addressPattern || !Array.isArray(body.allowedCategories)) {
-    return c.json({ error: "userId, addressPattern, allowedCategories required" }, 400);
-  }
-
-  // 分类白名单校验, 不接受未知分类
-  const invalid = body.allowedCategories.filter(
-    (cat) => !(MAIL_CATEGORIES as readonly string[]).includes(cat),
-  );
-  if (invalid.length > 0) {
-    return c.json({ error: `Unknown categories: ${invalid.join(", ")}` }, 400);
-  }
-
-  const result = await c.env.DB.prepare(
-    `INSERT INTO grants (user_id, address_pattern, allowed_categories, allow_sensitive)
-     VALUES (?, ?, ?, ?)`,
-  )
-    .bind(
-      body.userId,
-      body.addressPattern,
-      JSON.stringify(body.allowedCategories),
-      body.allowSensitive ? 1 : 0,
-    )
-    .run();
-
-  return c.json({ id: result.meta.last_row_id }, 201);
-});
-
-admin.delete("/grants/:id{[0-9]+}", async (c) => {
-  await c.env.DB.prepare("DELETE FROM grants WHERE id = ?")
-    .bind(Number.parseInt(c.req.param("id"), 10))
-    .run();
-  return c.json({ ok: true });
-});
-
+admin.get('/grants',async c=>{const uid=c.req.query('user_id');const stmt=uid?c.env.DB.prepare(`SELECT g.id,g.user_id AS userId,u.username,g.address_pattern AS addressPattern,g.allowed_categories AS allowedCategories,g.allow_sensitive AS allowSensitive,g.created_at AS createdAt FROM grants g JOIN users u ON u.id=g.user_id WHERE g.user_id=? ORDER BY g.id`).bind(Number.parseInt(uid,10)):c.env.DB.prepare(`SELECT g.id,g.user_id AS userId,u.username,g.address_pattern AS addressPattern,g.allowed_categories AS allowedCategories,g.allow_sensitive AS allowSensitive,g.created_at AS createdAt FROM grants g JOIN users u ON u.id=g.user_id ORDER BY g.id`);const{results}=await stmt.all();return c.json({grants:results??[]});});
+admin.post('/grants',async c=>{const b=await c.req.json<any>().catch(()=>null);if(!b?.userId||!b?.addressPattern||!Array.isArray(b.allowedCategories))return c.json({error:'userId, addressPattern, allowedCategories required'},400);const invalid=b.allowedCategories.filter((x:string)=>!(MAIL_CATEGORIES as readonly string[]).includes(x));if(invalid.length)return c.json({error:`Unknown categories: ${invalid.join(', ')}`},400);const r=await c.env.DB.prepare(`INSERT INTO grants(user_id,address_pattern,allowed_categories,allow_sensitive) VALUES(?,?,?,?)`).bind(b.userId,b.addressPattern,JSON.stringify(b.allowedCategories),b.allowSensitive?1:0).run();return c.json({id:r.meta.last_row_id},201);});
+admin.delete('/grants/:id{[0-9]+}',async c=>{await c.env.DB.prepare('DELETE FROM grants WHERE id=?').bind(Number.parseInt(c.req.param('id'),10)).run();return c.json({ok:true});});
 export default admin;
