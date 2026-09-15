@@ -27,6 +27,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare Local Wrangler Config
+        run: cp wrangler.toml.example wrangler.toml
+
       - name: Run Unit Tests
         run: pnpm run test -- --run
 
