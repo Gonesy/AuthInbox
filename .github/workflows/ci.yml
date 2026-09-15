@@ -30,11 +30,11 @@ jobs:
       - name: Prepare Local Wrangler Config
         run: cp wrangler.toml.example wrangler.toml
 
+      - name: Build Web App
+        run: pnpm run build:web
+
       - name: Run Unit Tests
-        run: pnpm run test -- --run
+        run: pnpm exec vitest run
 
       - name: Run Mail Tests
         run: pnpm run test:mail
-
-      - name: Build Web App
-        run: pnpm run build:web
