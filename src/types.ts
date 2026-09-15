@@ -20,10 +20,14 @@ export interface Env {
   // 由 OAuthProvider 在运行时注入 defaultHandler 的 env, 用于 /oauth/authorize
   OAUTH_PROVIDER?: import("@cloudflare/workers-oauth-provider").OAuthHelpers;
 
-  // Bark push
-  UseBark: string;
-  barkTokens: string;
-  barkUrl: string;
+  // Notification compatibility defaults. Admin UI settings in D1 take precedence once migration 0003 is applied.
+  UseBark?: string;
+  barkTokens?: string;
+  barkUrl?: string;
+  UseNtfy?: string;
+  ntfyUrl?: string;
+  ntfyTopic?: string;
+  ntfyToken?: string;
 
   // Primary AI provider
   AI_BASE_URL: string;
