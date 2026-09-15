@@ -6,7 +6,7 @@
 
 Don't want ads and spam in your main inbox? Need a bunch of alternative addresses for signups? Want your AI agent to complete sign-up flows by reading OTPs on its own? Try this **secure**, **serverless**, **lightweight** service!
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Gonesy/AuthInbox/tree/feature/ntfy-support)
 
 ```mermaid
 flowchart LR
@@ -87,7 +87,7 @@ flowchart LR
 
 2. **Fork & Deploy**
 
-   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TooonyChen/AuthInbox)
+   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Gonesy/AuthInbox/tree/feature/ntfy-support)
 
    In your forked repository, go to `Settings` → `Secrets and variables` → `Actions` and add:
    - `CLOUDFLARE_ACCOUNT_ID`
