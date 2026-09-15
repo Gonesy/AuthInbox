@@ -11,9 +11,16 @@ binding = "ASSETS"
 enabled = true
 
 [vars]
+# Notification compatibility defaults. After migration 0003, admins can manage these in Notifications.
 UseBark = "true"
 barkUrl = "https://api.day.app"
 barkTokens = "[token1, token2]"
+UseNtfy = "false"
+ntfyUrl = "https://ntfy.sh"
+ntfyTopic = "auth-inbox-random-topic"
+# For protected ntfy topics, prefer configuring the access token in the admin UI.
+# ntfyToken = "tk_..."
+
 AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 AI_API_KEY = "your-api-key"
 AI_API_FORMAT = "openai"
