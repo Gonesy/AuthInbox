@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { MAIL_CATEGORIES } from "../types";
 import { hashPassword } from "../services/auth";
+import { getNotificationSettings } from "../services/notifications";
 
 const admin = new Hono<AppEnv>();
 
@@ -45,6 +46,74 @@ admin.delete("/users/:id{[0-9]+}", async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- Notification settings ----------
+
+admin.get("/notifications", async (c) => {
+  const settings = await getNotificationSettings(c.env);
+  return c.json({
+    barkEnabled: settings.barkEnabled,
+    barkUrl: settings.barkUrl,
+    barkTokens: settings.barkTokens,
+    ntfyEnabled: settings.ntfyEnabled,
+    ntfyUrl: settings.ntfyUrl,
+    ntfyTopic: settings.ntfyTopic,
+    ntfyTokenConfigured: Boolean(settings.ntfyToken),
+  });
+});
+
+admin.post("/notifications", async (c) => {
+  const body = await c.req
+    .json<{
+      barkEnabled?: boolean;
+      barkUrl?: string;
+      barkTokens?: string;
+      ntfyEnabled?: boolean;
+      ntfyUrl?: string;
+      ntfyTopic?: string;
+      ntfyToken?: string;
+      clearNtfyToken?: boolean;
+    }>()
+    .catch(() => null);
+
+  if (!body) return c.json({ error: "Invalid JSON body" }, 400);
+  if (body.barkEnabled && (!body.barkUrl?.trim() || !body.barkTokens?.trim())) {
+    return c.json({ error: "Bark URL and at least one token are required when Bark is enabled" }, 400);
+  }
+  if (body.ntfyEnabled && (!body.ntfyUrl?.trim() || !body.ntfyTopic?.trim())) {
+    return c.json({ error: "ntfy URL and topic are required when ntfy is enabled" }, 400);
+  }
+
+  const current = await getNotificationSettings(c.env);
+  const ntfyToken = body.clearNtfyToken ? "" : body.ntfyToken?.trim() || current.ntfyToken;
+
+  await c.env.DB.prepare(
+    `INSERT INTO notification_settings
+       (id, bark_enabled, bark_url, bark_tokens, ntfy_enabled, ntfy_url, ntfy_topic, ntfy_token, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(id) DO UPDATE SET
+       bark_enabled = excluded.bark_enabled,
+       bark_url = excluded.bark_url,
+       bark_tokens = excluded.bark_tokens,
+       ntfy_enabled = excluded.ntfy_enabled,
+       ntfy_url = excluded.ntfy_url,
+       ntfy_topic = excluded.ntfy_topic,
+       ntfy_token = excluded.ntfy_token,
+       updated_at = CURRENT_TIMESTAMP`,
+  )
+    .bind(
+      body.barkEnabled ? 1 : 0,
+      (body.barkUrl || "https://api.day.app").trim().replace(/\/+$/, ""),
+      body.barkTokens || "",
+      body.ntfyEnabled ? 1 : 0,
+      (body.ntfyUrl || "https://ntfy.sh").trim().replace(/\/+$/, ""),
+      body.ntfyTopic || "",
+      ntfyToken,
+    )
+    .run();
+
+  return c.json({ ok: true });
+});
+
 // ---------- Grants 管理 ----------
 
 admin.get("/grants", async (c) => {
@@ -81,7 +150,6 @@ admin.post("/grants", async (c) => {
     return c.json({ error: "userId, addressPattern, allowedCategories required" }, 400);
   }
 
-  // 分类白名单校验, 不接受未知分类
   const invalid = body.allowedCategories.filter(
     (cat) => !(MAIL_CATEGORIES as readonly string[]).includes(cat),
   );
