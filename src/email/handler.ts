@@ -1,6 +1,7 @@
 import type { Env } from "../types";
 import { extractMailInfo } from "../services/classify";
 import { decodeMimeHeader, isPromotionalEmail } from "../services/mime";
+import { sendNotifications } from "../services/notifications";
 import { RPCEmailMessage } from "./rpcEmail";
 
 /*
@@ -9,31 +10,7 @@ import { RPCEmailMessage } from "./rpcEmail";
  * 2. 每封进件必写 raw_mails, 只有 AI 提取结果写 code_mails
  */
 
-async function pushBark(env: Env, title: string, code: string): Promise<void> {
-  const barkTokens = env.barkTokens
-    .replace(/^\[|\]$/g, "")
-    .split(",")
-    .map((token) => token.trim());
-
-  const encodedTitle = encodeURIComponent(title);
-  const encodedCode = encodeURIComponent(code);
-
-  for (const token of barkTokens) {
-    const barkRequestUrl = `${env.barkUrl}/${token}/${encodedTitle}/${encodedCode}`;
-    try {
-      const res = await fetch(barkRequestUrl, { method: "GET" });
-      if (!res.ok) {
-        console.error(`Bark push failed for token ${token}: ${res.status} ${res.statusText}`);
-      }
-    } catch (err) {
-      console.error(`Bark push error for token ${token}:`, err);
-    }
-  }
-}
-
 export async function handleEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
-  const useBark = env.UseBark.toLowerCase() === "true";
-
   const rawEmail =
     message instanceof RPCEmailMessage
       ? String((message as RPCEmailMessage).rawEmail)
@@ -89,10 +66,8 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
       return;
     }
 
-    if (useBark) {
-      await pushBark(env, title!, code!);
-    }
+    await sendNotifications(env, title || "Auth Inbox", code || topic || "New message");
   } catch (e) {
-    console.error("Error calling AI or saving to database:", e);
+    console.error("Error calling AI, saving to database, or sending notification:", e);
   }
 }
