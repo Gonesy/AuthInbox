@@ -12,26 +12,25 @@ export interface Env {
   ASSETS?: Fetcher;
 
   // Auth
-  JWT_SECRET: string; // wrangler secret put JWT_SECRET
-
-  // OAuth 是可选功能 (claude.ai 远程连接器用)。绑定了 OAUTH_KV 才启用;
-  // 不绑定则 /mcp 只认 aik_ API key, /oauth/* 返回 404。绑定名是库的硬性要求。
+  JWT_SECRET: string;
   OAUTH_KV?: KVNamespace;
-  // 由 OAuthProvider 在运行时注入 defaultHandler 的 env, 用于 /oauth/authorize
   OAUTH_PROVIDER?: import("@cloudflare/workers-oauth-provider").OAuthHelpers;
 
-  // Bark push
-  UseBark: string;
-  barkTokens: string;
-  barkUrl: string;
+  // Notification compatibility defaults. Saved admin settings in D1 take precedence.
+  UseBark?: string;
+  barkTokens?: string;
+  barkUrl?: string;
+  UseNtfy?: string;
+  ntfyUrl?: string;
+  ntfyTopic?: string;
+  ntfyToken?: string;
 
-  // Primary AI provider
-  AI_BASE_URL: string;
-  AI_API_KEY: string;
-  AI_API_FORMAT: ApiFormat;
-  AI_MODEL: string;
+  // AI is optional. Regex extraction works without these values.
+  AI_BASE_URL?: string;
+  AI_API_KEY?: string;
+  AI_API_FORMAT?: ApiFormat;
+  AI_MODEL?: string;
 
-  // Fallback AI provider
   AI_FALLBACK_BASE_URL?: string;
   AI_FALLBACK_API_KEY?: string;
   AI_FALLBACK_API_FORMAT?: ApiFormat;
@@ -39,39 +38,10 @@ export interface Env {
 }
 
 export type Role = "admin" | "user";
+export interface AuthedUser { id: number; username: string; role: Role; }
+export interface OAuthProps { userId: number; }
+export type AppEnv = { Bindings: Env; Variables: { user: AuthedUser } };
 
-export interface AuthedUser {
-  id: number;
-  username: string;
-  role: Role;
-}
-
-// OAuth grant 时加密进 token 的 props。只存 userId,
-// 每次请求从 D1 重新查用户, 保证删号/降权即时生效。
-export interface OAuthProps {
-  userId: number;
-}
-
-// Hono generic: c.env 是 Env, c.get('user') 是 AuthedUser
-export type AppEnv = {
-  Bindings: Env;
-  Variables: {
-    user: AuthedUser;
-  };
-};
-
-// 邮件分类枚举。改这里要同步改 classify.ts 里的 prompt。
-export const MAIL_CATEGORIES = [
-  "login_code", // 登录 / 2FA 验证码
-  "registration", // 注册验证
-  "password_reset", // 改密码 / 重置链接 (敏感)
-  "account_security", // 改绑邮箱、异地登录警告等 (敏感)
-  "payment", // 账单、扣款
-  "other",
-] as const;
-
+export const MAIL_CATEGORIES = ["login_code", "registration", "password_reset", "account_security", "payment", "other"] as const;
 export type MailCategory = (typeof MAIL_CATEGORIES)[number];
-
-// 这些分类默认只有 admin 可见。grant.allow_sensitive = 1 才对 user 放行。
-// 'legacy' 是迁移前的历史数据, 一律按敏感处理。
 export const SENSITIVE_CATEGORIES = ["password_reset", "account_security", "legacy"];
