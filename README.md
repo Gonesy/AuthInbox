@@ -88,6 +88,14 @@ A deliberately conservative rule is preferable: if regex cannot confidently iden
 
 Open **Notifications** as an administrator. Bark and ntfy are independent and can both be enabled. ntfy supports `ntfy.sh` or a self-hosted server, a topic, and an optional access token. For public ntfy topics, use a long hard-to-guess topic name.
 
+## Install as an app (PWA)
+
+After deployment over HTTPS, open Auth Inbox in a regular browser tab and use the browser's **Install app / Add to Home screen** menu. The installed app is named **Auth Inbox** and opens in a standalone window with the same sign-in and account permissions. Install options depend on the browser and device; private/incognito windows do not support installation.
+
+This is an **online-only PWA**. It adds a web app manifest and icons, with no service worker, offline mail cache, or changes to notification delivery. Internet access is still required. The manifest and icons are copied from `web/public/` into the normal Vite build and served by the existing `ASSETS` binding; no database migration or new Cloudflare binding is needed.
+
+The icon reuses the existing Lucide ShieldCheck mark. Its editable source is `web/public/icons/auth-inbox.svg`; the accompanying license is in `web/public/icons/LICENSE.txt`. The 512px icon keeps the mark inside the maskable safe zone. After editing the source, regenerate the 192px, 512px and 180px PNG files before rebuilding.
+
 ## Security notes
 
 Raw and Unprocessed mail are admin-only. Normal users remain restricted to extracted `code_mails` through the existing SQL grant/category permission layer. Regex configuration is also admin-only. Do not commit real API keys, JWT secrets, notification tokens, or a production `wrangler.toml` to the repository.
