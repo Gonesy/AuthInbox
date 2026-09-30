@@ -122,8 +122,8 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 	const nonAdminUsers = users.filter((u) => u.role !== 'admin');
 
 	return (
-		<div className="grid gap-6 lg:grid-cols-[1fr_1.3fr] [&>*]:min-w-0">
-			<Card className="p-6">
+		<div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[1fr_1.3fr] [&>*]:min-w-0">
+			<Card className="p-4 sm:p-6">
 				<CardHeader className="p-0 pb-4">
 					<CardTitle className="flex items-center gap-2">
 						<Users className="h-4 w-4 text-primary" />
@@ -149,7 +149,7 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 							/>
 						</div>
 					</div>
-					<div className="flex items-center justify-between gap-3">
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div className="flex gap-2">
 							{(['user', 'admin'] as const).map((role) => (
 								<button
@@ -174,8 +174,8 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 					</div>
 				</div>
 
-				<div className="overflow-hidden rounded-xl border border-border/80">
-					<table className="w-full border-collapse text-sm">
+				<div className="overflow-x-auto rounded-xl border border-border/80">
+					<table className="w-full min-w-[280px] border-collapse text-sm">
 						<thead className="bg-[#111111] text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
 							<tr>
 								<th className="px-3 py-3">User</th>
@@ -186,7 +186,7 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 						<tbody className="divide-y divide-border/80">
 							{users.map((item) => (
 								<tr key={item.id}>
-									<td className="px-3 py-3 font-medium text-slate-100">
+									<td className="max-w-[180px] px-3 py-3 font-medium text-slate-100 [overflow-wrap:anywhere]">
 										{item.username}
 										{item.id === currentUser.id ? <span className="ml-2 text-xs text-muted-foreground">(you)</span> : null}
 									</td>
@@ -221,7 +221,7 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 				</div>
 			</Card>
 
-			<Card className="p-6">
+			<Card className="p-4 sm:p-6">
 				<CardHeader className="p-0 pb-4">
 					<CardTitle>Access Grants</CardTitle>
 					<div className="text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 							<Label htmlFor="grant-user">User</Label>
 							<select
 								id="grant-user"
-								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&>option]:bg-[#111111]"
+								className="flex h-9 min-w-0 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&>option]:bg-[#111111]"
 								value={grantUserId}
 								onChange={(event) => setGrantUserId(event.target.value ? Number(event.target.value) : '')}
 							>
@@ -310,8 +310,8 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 					</div>
 				</div>
 
-				<div className="overflow-hidden rounded-xl border border-border/80">
-					<table className="w-full border-collapse text-sm">
+				<div className="overflow-x-auto rounded-xl border border-border/80">
+					<table className="w-full min-w-[560px] border-collapse text-sm">
 						<thead className="bg-[#111111] text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
 							<tr>
 								<th className="px-3 py-3">User</th>
@@ -330,7 +330,7 @@ export function AdminPage({ currentUser }: { currentUser: User }): JSX.Element {
 							) : (
 								grants.map((grant) => (
 									<tr key={grant.id}>
-										<td className="px-3 py-3 font-medium text-slate-100">{grant.username}</td>
+										<td className="max-w-[180px] px-3 py-3 font-medium text-slate-100 [overflow-wrap:anywhere]">{grant.username}</td>
 										<td className="max-w-[180px] truncate px-3 py-3 font-mono text-xs text-slate-300">{grant.addressPattern}</td>
 										<td className="px-3 py-3">
 											<div className="flex flex-wrap gap-1">

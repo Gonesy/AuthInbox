@@ -58,8 +58,8 @@ export function KeysPage(): JSX.Element {
 	};
 
 	return (
-		<div className="grid gap-6 lg:grid-cols-[1fr_1fr] [&>*]:min-w-0">
-			<Card className="p-6">
+		<div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[1fr_1fr] [&>*]:min-w-0">
+			<Card className="p-4 sm:p-6">
 				<CardHeader className="p-0 pb-4">
 					<CardTitle className="flex items-center gap-2">
 						<KeyRound className="h-4 w-4 text-primary" />
@@ -70,7 +70,7 @@ export function KeysPage(): JSX.Element {
 					</div>
 				</CardHeader>
 
-				<div className="mb-4 flex gap-2">
+				<div className="mb-4 flex flex-col gap-2 sm:flex-row">
 					<Input
 						placeholder="Key name, e.g. claude-code"
 						value={newKeyName}
@@ -89,7 +89,7 @@ export function KeysPage(): JSX.Element {
 							Copy this key now. It won't be shown again.
 						</div>
 						<div className="flex items-center gap-2">
-							<code className="flex-1 truncate rounded bg-[#0a0a0a] px-2 py-1.5 font-mono text-xs text-primary">{freshKey}</code>
+							<code className="min-w-0 flex-1 truncate rounded bg-[#0a0a0a] px-2 py-1.5 font-mono text-xs text-primary">{freshKey}</code>
 							<Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => copy(freshKey, 'Key')}>
 								<Copy className="h-3 w-3" />
 								Copy
@@ -98,13 +98,13 @@ export function KeysPage(): JSX.Element {
 					</div>
 				) : null}
 
-				<div className="overflow-hidden rounded-xl border border-border/80">
-					<table className="w-full border-collapse text-sm">
+				<div className="overflow-x-auto rounded-xl border border-border/80">
+					<table className="w-full min-w-[480px] border-collapse text-sm">
 						<thead className="bg-[#111111] text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
 							<tr>
 								<th className="px-3 py-3">Name</th>
-								<th className="hidden px-3 py-3 sm:table-cell">Created</th>
-								<th className="hidden px-3 py-3 sm:table-cell">Last used</th>
+								<th className="px-3 py-3">Created</th>
+								<th className="px-3 py-3">Last used</th>
 								<th className="px-3 py-3" />
 							</tr>
 						</thead>
@@ -122,9 +122,9 @@ export function KeysPage(): JSX.Element {
 							) : (
 								keys.map((key) => (
 									<tr key={key.id}>
-										<td className="px-3 py-3 font-medium text-slate-100">{key.name}</td>
-										<td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">{formatDate(key.createdAt)}</td>
-										<td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">{formatDate(key.lastUsedAt)}</td>
+										<td className="max-w-[200px] px-3 py-3 font-medium text-slate-100 [overflow-wrap:anywhere]">{key.name}</td>
+										<td className="px-3 py-3 text-xs text-muted-foreground">{formatDate(key.createdAt)}</td>
+										<td className="px-3 py-3 text-xs text-muted-foreground">{formatDate(key.lastUsedAt)}</td>
 										<td className="px-3 py-3 text-right">
 											<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-300" onClick={() => revokeKey(key.id)}>
 												<Trash2 className="h-4 w-4" />
@@ -138,7 +138,7 @@ export function KeysPage(): JSX.Element {
 				</div>
 			</Card>
 
-			<Card className="p-6">
+			<Card className="p-4 sm:p-6">
 				<CardHeader className="p-0 pb-4">
 					<CardTitle>Connect an MCP client</CardTitle>
 					<div className="text-xs text-muted-foreground">
@@ -150,7 +150,7 @@ export function KeysPage(): JSX.Element {
 					<div>
 						<div className="mb-1.5 text-xs uppercase tracking-[0.08em] text-muted-foreground">Server URL</div>
 						<div className="flex items-center gap-2">
-							<code className="flex-1 truncate rounded bg-[#0a0a0a] px-2 py-1.5 font-mono text-xs">{mcpUrl}</code>
+							<code className="min-w-0 flex-1 truncate rounded bg-[#0a0a0a] px-2 py-1.5 font-mono text-xs">{mcpUrl}</code>
 							<Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => copy(mcpUrl, 'URL')}>
 								<Copy className="h-3 w-3" />
 								Copy

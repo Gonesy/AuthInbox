@@ -51,9 +51,9 @@ export function LoginPage({ onLogin }: LoginPageProps): JSX.Element {
 	};
 
 	return (
-		<div className="flex min-h-screen items-center justify-center px-4">
+		<div className="login-layout flex min-h-screen items-center justify-center px-4 py-6">
 			<div className="pointer-events-none fixed inset-0 bg-[radial-gradient(900px_400px_at_50%_-10%,rgba(95,224,192,0.1),transparent)]" />
-			<Card className="relative w-full max-w-sm p-8">
+			<Card className="relative w-full max-w-sm p-5 sm:p-8">
 				<div className="mb-6">
 					<div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
 						<ShieldCheck className="h-4 w-4 text-primary" />
